@@ -1,0 +1,25 @@
+{
+  "name": "nodechain",
+  "version": "1.0.0",
+  "description": "A simple blockchain implementation in Node.js",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "server": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node src/test.js"
+  },
+  "keywords": [
+    "blockchain",
+    "cryptocurrency",
+    "proof-of-work"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "express": "^5.1.0"
+  }
+}
