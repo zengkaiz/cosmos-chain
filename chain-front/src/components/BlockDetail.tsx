@@ -1,6 +1,9 @@
-import { Descriptions, Tag, Modal } from 'antd';
+import { Descriptions, Tag, Modal, Collapse, Typography, Space, Divider } from 'antd';
+import { TransactionOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { BlockInfo } from '../services/blockchain';
+
+const { Text, Paragraph } = Typography;
 
 interface BlockDetailProps {
   block: BlockInfo | null;
@@ -17,7 +20,7 @@ export const BlockDetail: React.FC<BlockDetailProps> = ({ block, visible, onClos
       open={visible}
       onCancel={onClose}
       footer={null}
-      width={800}
+      width={900}
     >
       <Descriptions bordered column={1}>
         <Descriptions.Item label="区块高度">
@@ -36,6 +39,73 @@ export const BlockDetail: React.FC<BlockDetailProps> = ({ block, visible, onClos
           <code style={{ wordBreak: 'break-all' }}>{block.proposer}</code>
         </Descriptions.Item>
       </Descriptions>
+
+      {block.transactions && block.transactions.length > 0 && (
+        <>
+          <Divider orientation="left">
+            <Space>
+              <TransactionOutlined />
+              <span>交易详情</span>
+            </Space>
+          </Divider>
+          <Collapse
+            size="small"
+            items={block.transactions.map((tx) => ({
+              key: tx.index,
+              label: (
+                <Space>
+                  <Tag color="purple">TX #{tx.index}</Tag>
+                  <Text code style={{ fontSize: 12 }}>
+                    {tx.hash.substring(0, 16)}...
+                  </Text>
+                </Space>
+              ),
+              children: (
+                <div>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <div>
+                      <Text strong>交易哈希:</Text>
+                      <Paragraph
+                        copyable
+                        code
+                        style={{ marginBottom: 8, marginTop: 4 }}
+                      >
+                        {tx.hash}
+                      </Paragraph>
+                    </div>
+                    <div>
+                      <Text strong>交易数据 (Base64):</Text>
+                      <Paragraph
+                        copyable
+                        code
+                        style={{
+                          marginBottom: 0,
+                          marginTop: 4,
+                          maxHeight: 200,
+                          overflow: 'auto',
+                          fontSize: 11,
+                        }}
+                      >
+                        {tx.data}
+                      </Paragraph>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      💡 提示: 交易数据为 Base64 编码格式，可以复制后使用工具解码查看详情
+                    </Text>
+                  </Space>
+                </div>
+              ),
+            }))}
+          />
+        </>
+      )}
+
+      {block.txCount === 0 && (
+        <>
+          <Divider />
+          <Text type="secondary">此区块没有交易</Text>
+        </>
+      )}
     </Modal>
   );
 };

@@ -81,7 +81,8 @@ function App() {
 
   const handleBlockClick = async (height: number) => {
     try {
-      const block = await blockchainService.getBlock(height);
+      // 获取包含交易详情的区块信息
+      const block = await blockchainService.getBlock(height, true);
       setSelectedBlock(block);
       setDetailVisible(true);
     } catch (error) {

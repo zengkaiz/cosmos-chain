@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>以太坊钱包示例</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+        
+        .info-box {
+            background: #f7f9fc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .info-box.active {
+            display: block;
+        }
+        
+        .info-item {
+            margin-bottom: 15px;
+        }
+        
+        .info-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .info-value {
+            font-size: 16px;
+            color: #333;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .balance {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #e9ecef;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #dee2e6;
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .network-selector {
+            margin-bottom: 20px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .status.active {
+            display: block;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🦊 以太坊钱包</h1>
+        
+        <div class="status" id="status"></div>
+        
+        <button class="btn-primary" id="connectBtn">连接 MetaMask</button>
+        
+        <div class="network-selector">
+            <select id="networkSelect" disabled>
+                <option value="1">以太坊主网</option>
+                <option value="5">Goerli 测试网</option>
+                <option value="11155111">Sepolia 测试网</option>
+                <option value="137">Polygon 主网</option>
+                <option value="80001">Polygon Mumbai 测试网</option>
+                <option value="56">BSC 主网</option>
+                <option value="97">BSC 测试网</option>
+            </select>
+        </div>
+        
+        <div class="info-box" id="infoBox">
+            <div class="info-item">
+                <div class="info-label">网络</div>
+                <div class="info-value" id="networkName">-</div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-label">账户地址</div>
+                <div class="info-value" id="accountAddress">-</div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-label">余额</div>
+                <div class="info-value balance" id="balance">-</div>
+            </div>
+        </div>
+        
+        <button class="btn-secondary" id="refreshBtn" style="display: none;">刷新余额</button>
+    </div>
+
+    <script>
+        // 检查库是否加载
+        if (typeof ethers === 'undefined') {
+            console.error('ethers.js 未能加载');
+            alert('加载失败，请刷新页面重试');
+        }
+
+        let provider;
+        let signer;
+        let userAccount;
+
+        // 网络配置
+        const networks = {
+            '1': { name: '以太坊主网', symbol: 'ETH', rpc: 'https://eth.llamarpc.com' },
+            '5': { name: 'Goerli 测试网', symbol: 'ETH', rpc: 'https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161' },
+            '11155111': { name: 'Sepolia 测试网', symbol: 'ETH', rpc: 'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161' },
+            '137': { name: 'Polygon 主网', symbol: 'MATIC', rpc: 'https://polygon-rpc.com' },
+            '80001': { name: 'Polygon Mumbai', symbol: 'MATIC', rpc: 'https://rpc-mumbai.maticvigil.com' },
+            '56': { name: 'BSC 主网', symbol: 'BNB', rpc: 'https://bsc-dataseed.binance.org' },
+            '97': { name: 'BSC 测试网', symbol: 'BNB', rpc: 'https://data-seed-prebsc-1-s1.binance.org:8545' }
+        };
+
+        // 显示状态消息
+        function showStatus(message, type = 'info') {
+            $('#status').removeClass('success error info').addClass(type + ' active').text(message);
+            setTimeout(() => {
+                $('#status').removeClass('active');
+            }, 5000);
+        }
+
+        // 连接钱包
+        async function connectWallet() {
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    showStatus('请先安装 MetaMask!', 'error');
+                    return;
+                }
+
+                showStatus('正在连接钱包...', 'info');
+                
+                // 请求账户访问
+                const accounts = await window.ethereum.request({ 
+                    method: 'eth_requestAccounts' 
+                });
+                
+                userAccount = accounts[0];
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                
+                // 更新UI
+                $('#connectBtn').text('已连接').prop('disabled', true);
+                $('#networkSelect').prop('disabled', false);
+                $('#infoBox').addClass('active');
+                $('#refreshBtn').show();
+                
+                // 获取并显示信息
+                await updateAccountInfo();
+                
+                showStatus('钱包连接成功!', 'success');
+                
+            } catch (error) {
+                console.error('连接失败:', error);
+                showStatus('连接失败: ' + error.message, 'error');
+            }
+        }
+
+        // 更新账户信息
+        async function updateAccountInfo() {
+            try {
+                // 获取网络信息
+                const network = await provider.getNetwork();
+                const chainId = network.chainId.toString();
+                const networkInfo = networks[chainId] || { name: '未知网络', symbol: 'ETH' };
+                
+                $('#networkName').text(networkInfo.name);
+                $('#accountAddress').text(userAccount);
+                $('#networkSelect').val(chainId);
+                
+                // 获取余额
+                const balance = await provider.getBalance(userAccount);
+                console.log('余额:', balance)
+                const balanceInEther = ethers.utils.formatEther(balance);
+                $('#balance').text(parseFloat(balanceInEther).toFixed(4) + ' ' + networkInfo.symbol);
+                
+            } catch (error) {
+                console.error('更新信息失败:', error);
+                showStatus('更新信息失败: ' + error.message, 'error');
+            }
+        }
+
+        // 切换网络
+        async function switchNetwork(chainId) {
+            try {
+                const chainIdHex = '0x' + parseInt(chainId).toString(16);
+                
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: chainIdHex }],
+                });
+                
+                showStatus('网络切换成功!', 'success');
+                
+                // 等待一下让网络切换完成
+                setTimeout(async () => {
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    signer = provider.getSigner();
+                    await updateAccountInfo();
+                }, 1000);
+                
+            } catch (error) {
+                if (error.code === 4902) {
+                    showStatus('该网络未添加到钱包中', 'error');
+                } else {
+                    console.error('切换网络失败:', error);
+                    showStatus('切换网络失败: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // 监听账户变化
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', (accounts) => {
+                if (accounts.length === 0) {
+                    showStatus('请连接钱包', 'info');
+                    location.reload();
+                } else {
+                    userAccount = accounts[0];
+                    updateAccountInfo();
+                    showStatus('账户已切换', 'info');
+                }
+            });
+
+            // 监听网络变化
+            window.ethereum.on('chainChanged', () => {
+                location.reload();
+            });
+        }
+
+        // 事件绑定
+        $(document).ready(function() {
+            // 再次检查 ethers 是否可用
+            if (typeof ethers === 'undefined') {
+                showStatus('库加载失败，请刷新页面', 'error');
+                return;
+            }
+            
+            $('#connectBtn').on('click', connectWallet);
+            $('#refreshBtn').on('click', updateAccountInfo);
+            $('#networkSelect').on('change', function() {
+                const selectedChainId = $(this).val();
+                switchNetwork(selectedChainId);
+            });
+        });
+    </script>
+</body>
+</html>

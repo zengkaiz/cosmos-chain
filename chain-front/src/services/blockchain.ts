@@ -8,12 +8,19 @@ function toHex(bytes: Uint8Array): string {
     .toUpperCase();
 }
 
+export interface TransactionInfo {
+  hash: string;
+  data: string; // Base64 encoded transaction data
+  index: number;
+}
+
 export interface BlockInfo {
   height: number;
   hash: string;
   time: string;
   proposer: string;
   txCount: number;
+  transactions?: TransactionInfo[]; // 交易详情列表
 }
 
 export interface ChainInfo {
@@ -95,20 +102,31 @@ class BlockchainService {
     return status.syncInfo.latestBlockHeight;
   }
 
-  async getBlock(height?: number): Promise<BlockInfo> {
+  async getBlock(height?: number, includeTxs: boolean = false): Promise<BlockInfo> {
     if (!this.tmClient) {
       throw new Error('Client not connected');
     }
 
     const block = height ? await this.tmClient.block(height) : await this.tmClient.block();
 
-    return {
+    const blockInfo: BlockInfo = {
       height: block.block.header.height,
       hash: toHex(block.blockId.hash),
       time: block.block.header.time.toISOString(),
       proposer: toHex(block.block.header.proposerAddress),
       txCount: block.block.txs.length,
     };
+
+    // 如果需要包含交易详情
+    if (includeTxs && block.block.txs.length > 0) {
+      blockInfo.transactions = block.block.txs.map((tx, index) => ({
+        hash: toHex(tx),
+        data: btoa(String.fromCharCode(...Array.from(tx))), // Convert Uint8Array to base64
+        index,
+      }));
+    }
+
+    return blockInfo;
   }
 
   async getBlocks(fromHeight: number, toHeight: number): Promise<BlockInfo[]> {
